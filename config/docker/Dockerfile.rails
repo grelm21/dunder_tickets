@@ -1,0 +1,35 @@
+FROM ruby:3.4.7
+
+# Install npm
+RUN curl -fsSL https://deb.nodesource.com/setup_18.x
+
+RUN apt-get update && \
+  apt-get install -qq -y --no-install-recommends cron nodejs npm && \
+  rm -rf /var/lib/apt/lists/* && \
+  cp /usr/share/zoneinfo/Europe/Moscow /etc/localtime
+
+
+# Set an environment variable where the Rails app is installed to inside of Docker image
+ENV RAILS_ROOT /var/www/dunder_tickets
+RUN mkdir -p $RAILS_ROOT
+
+# Set working directory
+WORKDIR $RAILS_ROOT
+
+# Adding project files
+COPY ./ .
+
+# Adding gems
+RUN rm -rf node_modules vendor
+RUN rm -f tmp/pids/server_1.pid
+RUN rm -f tmp/pids/server_2.pid
+RUN gem install rails bundler
+
+RUN bundle install --jobs 20 --retry 5
+RUN npm install
+
+RUN chmod +x config/docker/docker-entrypoint.sh
+
+# Start server
+EXPOSE 3000
+ENTRYPOINT ["config/docker/docker-entrypoint.sh"]

@@ -1,0 +1,67 @@
+services:
+  application-dunder:
+    container_name: application-dunder
+    image: dunder_tickets_image
+    build:
+      context: .
+      dockerfile: config/docker/Dockerfile.rails
+    env_file:
+      - .env
+    environment:
+      - PIDFILE=tmp/pids/server_1.pid
+    ports:
+      - "3003:3000"
+    volumes:
+      - ./:/var/www/dunder_tickets
+
+  # Тот же image, что backend — другой процесс (long polling), не отдельная «мини-апка».
+  telegram_bot:
+    container_name: telegram_bot
+    image: dunder_tickets_image
+    build:
+      context: .
+      dockerfile: config/docker/Dockerfile.rails
+    command: ["bundle", "exec", "rails", "telegram:bot"]
+    env_file:
+      - .env
+    environment:
+      RAILS_LOG_TO_STDOUT: "true"
+    volumes:
+      - ./:/var/www/dunder_tickets
+    depends_on:
+      - db
+    restart: unless-stopped
+    # чтобы вывод был «как в терминале», без лишней буферизации
+    tty: true
+    stdin_open: true
+
+  db:
+    container_name: postgres
+    image: postgres:16.9-bullseye
+    environment:
+      POSTGRES_USER: dunder_tickets
+      POSTGRES_PASSWORD: ui2s)ios3UUy
+      PGDATA: /tmp
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres:/var/lib/postgresql/data
+      # If postgres container contain file with permissions postgres:postrges
+      # stop container then comment string below, up container without string and rebuild with uncommented string
+      # problem seen on docker-desktop mac os x
+      - ./config/docker/postgresql.conf:/var/lib/postgresql/data/postgresql.conf
+
+  redis:
+    image: redis:latest
+    restart: always
+    ports:
+      - "6379:6379"
+    command: redis-server --save 20 1 --loglevel warning --requirepass IjG08hF9d
+    volumes:
+      - redis:/data
+
+volumes:
+  redis:
+    driver: local
+  postgres:
+    driver: local
